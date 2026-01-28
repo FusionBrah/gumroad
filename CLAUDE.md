@@ -80,6 +80,48 @@ bundle exec rubocop # Ruby
 - Use Nano IDs for external/public IDs
 - Use `find_each` for batch processing large datasets
 
+## Implementation Patterns
+
+### Extend existing code instead of duplicating patterns
+When adding a feature that follows an existing pattern, **extend the existing code** rather than creating parallel files. This results in smaller PRs and more maintainable code.
+
+**Bad:** Creating `CheckStripeFingerprintWorker` alongside `CheckPaymentAddressWorker`
+```ruby
+# Two separate workers doing conceptually the same thing
+class CheckPaymentAddressWorker
+  def perform(user_id)
+    # check payment address...
+  end
+end
+
+class CheckStripeFingerprintWorker
+  def perform(user_id)
+    # check stripe fingerprint... (same pattern, different identifier)
+  end
+end
+```
+
+**Good:** Extending `CheckPaymentAddressWorker` to handle both
+```ruby
+class CheckPaymentAddressWorker
+  def perform(user_id)
+    should_flag = payment_address_matches_suspended_account?(user) ||
+                  stripe_fingerprint_matches_suspended_account?(user)
+    user.flag_for_fraud! if should_flag
+  end
+end
+```
+
+### Reuse existing infrastructure
+- Check for existing `BlockedObject` types before adding new ones
+- Look for similar scopes, concerns, or methods that can be extended
+- Add to existing spec files rather than creating parallel test files
+
+### Never commit tooling or editor files
+- Do not commit `CLAUDE.md`, `.cursorrules`, or similar AI assistant config files
+- Do not commit editor-specific files (`.vscode/`, `.idea/`)
+- Check `git status` before committing to catch accidental inclusions
+
 ## Testing
 
 - Don't use "should" in test descriptions
